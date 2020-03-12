@@ -122,7 +122,7 @@ def limit_reduce (x,p=max_recursion):
     return y
 
 
-def consolidate (x)   : return (greatest(x[0]), least(x[1]))
+def consolidate (x)   : return (greatest(x[0]),  least(x[1]))
 def negate      (x)   : return (negate(x[1]), negate(x[0])) if x else x
 def absolute    (x)   : return negate(x) if le(x,nil) else x
 def sub         (x,y) : return add(x,negate(y))
@@ -136,9 +136,8 @@ def ge          (x,y) : return                     le(y,x)
 # return True if a and b are less than c apart
 def within (a,b,c): return lt(absolute(sub(a,b)),c)
 
-def le (x,y,n=0): 
-    mr = max_recursion
-    return n > mr or not (x[0] and le(y,x[0],n+1) or y[1] and le(y[1],x,n+1))
+
+def le (x,y,n=0):
     return n > max_recursion or not (x[0] and le(y,x[0],n+1) or y[1] and le(y[1],x,n+1) )
 
 
@@ -205,7 +204,7 @@ class Sinary ():
         elif type(form) in [int, float, Fraction]:
             self.left, self.right = (construct(form))[:]
 
-    def __len__          (x) : return len(x.form())
+    def __len__     (self)   : return len(x.form())
     def __le__      (self,o) : return le(self.form(), o.form())
     def __ge__      (self,o) : return     o <= self
     def __lt__      (self,o) : return not o <= self
@@ -255,5 +254,3 @@ class Sinary ():
 
     def __invert__ (self):
         return type(self)(reduce(invert(self.form())))
-
-
