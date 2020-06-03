@@ -1,11 +1,6 @@
 from fractions import Fraction
 from hypercurset_obj import *
 
-def delink (x):
-    a = [[],[]]
-    a[:] = x[:]
-    return a
-
 # display the location of nans within the list array
 def nodes(x,idx=[]):
     if form(x) == 'nan':
