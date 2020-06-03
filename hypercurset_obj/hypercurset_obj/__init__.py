@@ -7,13 +7,6 @@ pos = nil,nan
 neg = nan,nil
 precision = 2**-8
 
-def delink (x):
-    a = [[],[]]
-    a[:] = x[:]
-    return a
-    r = tuple(a)
-    return r
-
 class HyperCurset():
     def __init__ (self,*state):
         sl = len(state)
@@ -236,6 +229,11 @@ def invert (y):
     return reduce(r)
 
 # Tools:
+
+def delink (x):
+    a = [[],[]]
+    a[:] = x[:]
+    return a
 
 def construct (num,precision=precision):
     if num is None: return nan
