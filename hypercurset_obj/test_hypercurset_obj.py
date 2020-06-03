@@ -2,15 +2,7 @@
 from hypercurset_obj_tools import *
 import unittest
 
-negtwo   = nan,neg
-neghalf  = neg,nil
-half     = nil,pos
-two      = pos,nan
-negthree = nan,negtwo
-hyper    = [negtwo,neg]
-hyper2   = [pos,half]
-v        = False
-#v       = True
+v = False
 
 class HyperCursetTests(unittest.TestCase):
     def Test_division(self):
