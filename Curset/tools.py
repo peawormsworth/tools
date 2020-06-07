@@ -16,7 +16,7 @@ def nan_str (x):
 
 def canal (r=[Fraction(0,1)]):
     """yeilds fractions according to their birthday ordering.
-    0,-1,1,-2,-1/2,1/2,2,-3... 
+    None,0,-1,1,-2,-1/2,1/2,2,-3... 
     """
     yield None
     yield r[0]
@@ -43,11 +43,9 @@ def cleave ():
             h = Curset(s[0],s)
             yield h
             nl = nl + [h]
-
             h = Curset(s,s[1])
             yield h
             nl = nl + [h]
-
         l = nl
 
 def create (days=7):
@@ -57,4 +55,3 @@ def create (days=7):
     for i in range(2**days):
         universe[next(birth)] = next(sprout)
     return universe
-
