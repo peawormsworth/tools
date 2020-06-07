@@ -1,10 +1,15 @@
 from math import log
 from fractions import Fraction
 
+# bits of precision
+bits = 16
+
 class Curset():
     def __init__ (x,a=None,b=None):
         if a is b is None:
             x.x = x,x
+        elif not b and a and type(a) in (int,float,Fraction):
+            x.x = x.construct(a).x
         else:
             x.x = a,b
 
@@ -89,12 +94,9 @@ class Curset():
 
     def __pos__ (x):
         return type(x)(x[0],x[1])
-
-    # currently set to return 1/x (fractional inverse)
-    # should this call conjugate instead? (spacial reflection)
-    # should this depend on the type? hyper/curset?
-    def __invert__ (self):
-        return type(self)(invert(self.x))
+    
+    def __invert__ (x):
+        return type(x)(invert(x.x))
 
     def __le__ (x,y):
         a,b = x
@@ -167,6 +169,26 @@ class Curset():
                 scale /= 2
         return num
 
+    def construct (x,num,bits=bits):
+        if num is None: return nan
+        seed  = nil
+        scale = 1
+        lone  = None
+        while 2**-bits <= abs(num):
+            if abs(num) <= 1:
+                lone = True
+            if num <= 0:
+                seed = type(x)(seed[0],seed)
+                num += scale
+                lone = 0 <= num or lone
+            else:
+                seed = type(x)(seed,seed[1])
+                num -= scale
+                lone = num <= 0 or lone
+            if lone:
+                scale /= 2
+        return seed
+
     def reduce(x,y=None):
         if y is None:
             y = nil
@@ -177,21 +199,20 @@ class Curset():
         return x.reduce(type(x)(y,y[1]))
 
 class Hyper(Curset):
-    def __init__ (self,*s):
+    def __init__ (x,*s):
         l = len(s)
         assert(log(l,2).is_integer()), \
             'input list must be a power of 2, not %s' % l
         if l > 2:
             h = l//2
-            self.x = type(self)(*s[:h]), type(self)(*s[h:])
+            x.x = type(x)(*s[:h]), type(x)(*s[h:])
         elif l == 2:
-            if type(s[0]) is Hyper:
-                 self.x = s[0], s[1]
+            if type(s[0]) in (int,float,Fraction):
+                 x.x = Curset(s[0]), Curset(s[1])
             else:
-                 self.x = (s[0].reduce(), s[1].reduce())
-    
+                 x.x = s[0], s[1]
+
 nan = Curset()
 nil = Curset(nan, nan)
 pos = Curset(nil, nan)
 neg = Curset(nan, nil)
-
