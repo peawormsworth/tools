@@ -1,11 +1,59 @@
 #!/usr/bin/python3
 from tools import *
 import unittest
+import pandas as pd
 
 v = False
-v = True
+#v = True
+
+quaternion_table = """
+    1  i  j  k
+    i -1  k -j
+    j -k -1  i
+    k  j -i -1
+"""
+
+if not v: print("v = False, set v = True for verbose mode")
+
+def generate_str (obj):
+    """create a multiplication table for a given Algebra object and return the elements in string format"""
+    units  = unit_list(obj)
+    print('units:',units)
+    return [ [str(j*i) for i in units] for j in units]
+
+def unit_list (obj):
+    d = 4
+    return [ obj( ( *[nil]*i + [pos] + [nil]*(d-i-1) )) for i in range(d) ]
+
+def _test_unit_multiplication (self,expect,calc):
+    "generic unit product table"
+    imaginaries = '1ijklmnopqrstuvw'
+    n  = 4
+    il = list(imaginaries[:n])
+
+    if v: print("\ncalc:   {0}\nexpect: {1}\nil: {2}".format(calc, expect, il))
+
+    if v: 
+        print(_verbose_unit_multiplication().format(
+            object           = self.obj.__name__,
+            expected_table   = pd.DataFrame( expect, index = il, columns = il ),
+            calculated_table = pd.DataFrame(   calc, index = il, columns = il )
+        ))
+    self.assertListEqual(calc, expect)
+
+
+def _verbose_unit_multiplication ():
+   return """
+=== Expected {object} table ===
+{expected_table}
+=== Calculated {object} table ===
+{calculated_table}
+...
+"""
 
 class Tests(unittest.TestCase):
+    obj = Hyper
+
     def Test_division(self):
         days = 5
         c = create(days=days)
@@ -24,6 +72,46 @@ class Tests(unittest.TestCase):
                 self.assertEqual(quotient, c[expect])
                 cnt += 1
         print('\nsuccess: {} divisions'.format(cnt))
+
+    def Test_quaternion_unit_multiplication (self):
+        "Quaternion unit product table"
+        expect      = [ a.split() for a in quaternion_table.strip().split("\n") ]
+
+        imaginaries = '1ijklmnopqrstuvw'
+        n  = 4
+        il = list(imaginaries[:n])
+        expected_table = pd.DataFrame( expect, index = il, columns = il )
+        print('\net:\n',expected_table)
+        calc = generate_str(self.obj)
+        _test_unit_multiplication(self, expect=expect, calc=calc)
+
+    def test_quaternion_table(self):
+        days = 2
+        c = create(days=days)
+        cnt = 0
+
+        o = Hyper(c[1],c[0],c[0],c[0])
+        i = Hyper(c[0],c[1],c[0],c[0])
+        j = Hyper(c[0],c[0],c[1],c[0])
+        k = Hyper(c[0],c[0],c[0],c[1])
+
+        self.assertEqual(o*o,o)
+        self.assertEqual(o*i,i)
+        self.assertEqual(o*j,j)
+        self.assertEqual(o*k,k)
+        self.assertEqual(i*o,i)
+        self.assertEqual(i*i,-o)
+        self.assertEqual(i*j,k)
+        self.assertEqual(i*k,-j)
+        self.assertEqual(j*o,j)
+        self.assertEqual(j*i,-k)
+        self.assertEqual(j*j,-o)
+        self.assertEqual(j*k,i)
+        self.assertEqual(k*o,k)
+        self.assertEqual(k*i,j)
+        self.assertEqual(k*j,-i)
+        self.assertEqual(k*k,-o)
+        print('\nsuccess: 16 quaternion multiplications')
 
     def test_curset_multiply(self):
         days = 4
@@ -159,7 +247,7 @@ class Tests(unittest.TestCase):
         days = 4
         c = create(days=days)
         cnt = 0
-        if v: print('\n'.join(str(x) for x in c.keys()))
+        #if v: print('\n'.join(str(x) for x in c.keys()))
         for a in c.keys():
             for b in c.keys():
                 if None in (a,b):
@@ -172,6 +260,7 @@ class Tests(unittest.TestCase):
                 if v: print("check that {} + {} = {}".format(a,b,expect))
                 sum = c[a] + c[b]
                 self.assertEqual(sum,c[expect])
+                #self.assertEqual(sum,Hyper.construct(expect))
                 cnt += 1
         print('\nsuccess: {} additions'.format(cnt))
 
