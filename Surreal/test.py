@@ -6,55 +6,7 @@ import pandas as pd
 v = False
 #v = True
 
-quaternion_table = """
-    1  i  j  k
-    i -1  k -j
-    j -k -1  i
-    k  j -i -1
-"""
-
-if not v: print("v = False, set v = True for verbose mode")
-
-def generate_str (obj):
-    """create a multiplication table for a given Algebra object and return the elements in string format"""
-
-    units  = unit_list(obj)
-    print('units:',units)
-    return [ [str(j*i) for i in units] for j in units]
-
-def unit_list (obj):
-    d = 4
-    return [ obj( ( *[nil]*i + [pos] + [nil]*(d-i-1) )) for i in range(d) ]
-
-def _test_unit_multiplication (self,expect,calc):
-    "generic unit product table"
-
-    imaginaries = '1ijklmnopqrstuvw'
-    n  = 4
-    il = list(imaginaries[:n])
-
-    if v: print("\ncalc:   {0}\nexpect: {1}\nil: {2}".format(calc, expect, il))
-
-    if v: 
-        print(_verbose_unit_multiplication().format(
-            object           = self.obj.__name__,
-            expected_table   = pd.DataFrame( expect, index = il, columns = il ),
-            calculated_table = pd.DataFrame(   calc, index = il, columns = il )
-        ))
-    self.assertListEqual(calc, expect)
-
-
-def _verbose_unit_multiplication ():
-   return """
-=== Expected {object} table ===
-{expected_table}
-=== Calculated {object} table ===
-{calculated_table}
-...
-"""
-
 class Tests(unittest.TestCase):
-    #obj = Hyper
 
     def test_inversion(self):
         c = create()
@@ -65,25 +17,6 @@ class Tests(unittest.TestCase):
         self.assertEqual(~c[ 1/2],c[   2])
         self.assertEqual(~c[   2],c[ 1/2])
         print('\nsuccess: 6 divisions')
-
-    def Test_division(self):
-        days = 5
-        c = create(days=days)
-        cnt = 0
-        for a in c.keys():
-            for b in c.keys():
-                if None in (a,b) or b == 0:
-                    if v: print('{} / {} = ?. Can not divide'.format(a,b))
-                    continue
-                expect = a / b
-                if expect not in c:
-                    if v: print('{} / {} = {}, but {} is not in our list'.format(a,b,expect,expect))
-                    continue
-                if v: print("check that {} / {} = {}".format(a,b,expect))
-                quotient = c[a] / c[b]
-                self.assertEqual(quotient, c[expect])
-                cnt += 1
-        print('\nsuccess: {} divisions'.format(cnt))
 
     def test_multiply(self):
         days = 4
