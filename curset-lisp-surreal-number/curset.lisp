@@ -9,17 +9,17 @@
 ;;;;    up to bit precision of lisp positive intgers
 ;;;;
 ;;;;  Conversion between numbers formats of order, values and cursets are provided by 
-;;;;    ov, oc, vo, vc, co and cv functions where letters represent a "from to" relationship 
+;;;;    order-to-value, oc, value-to-order, value-to-order, curset-to-order and curset-to-value functions where letters represent a "from to" relationship 
 ;;;;
-;;;;  For example "ov" says to convert from the order into its values
-;;;;    the code: "(ov 22)" then means to return the value of the 22nd surreal number
+;;;;  For example "order-to-value" says to convert from the order into its values
+;;;;    the code: "(order-to-value 22)" then means to return the value of the 22nd surreal number
 ;;;;
 ;;;;  The linked tumple representations have been named "cursets" because they are not a
 ;;;;    true representation of Surreal numbers
 ;;;;
 ;;;;  Cursets are easily created by order, using:
-;;;;    "(oc a)" where a is a non-negative integer
-;;;;    "(ov a)" where a is a signed float of some finite precision
+;;;;    "(order-to-curset a)" where a is a non-negative integer
+;;;;    "(order-to-value a)" where a is a signed float of some finite precision
 ;;;;
 
 
@@ -38,66 +38,59 @@
 ;;;
 
 
-;; (le a b) is true if a is less than or equal to b
+;; (less-or-equal a b) is true if a is less than or equal to b
 ;;
-;; le implements less than or equal to comparison which is the primary formula 
+;; less-or-equal implements less than or equal to comparison which is the primary formula 
 ;;   on which all other mathematical operations depend
 ;; considering that all numbers have a less and greater part if any, then
 ;;   number A is less than or equal to number B when both
 ;;   1. there is no left part of A or B is not less than this part, and
 ;;   2. there is no right part of B or A is not less than this part
 
-( defun le (a b)
+( defun less-or-equal (a b)
   ( let
-    ( (al (car a))
-      (br (cdr b))
+    ( (left (car a))
+      (right (cdr b))
     )
-    ( and (not (and al (le b al)))
-          (not (and br (le br a)))
+    ( and (not (and left (less-or-equal b left)))
+          (not (and right (less-or-equal right a)))
     )
   )
 )
 
 
-( defun lep (a b)
-  ( and (not (and (car a) (lep b (car a))))
-        (not (and (cdr b) (lep (cdr b) a)))
-  )
-)
+;; (greater-than a b) is true is a is greater than b
 
-
-;; (gt a b) is true is a is greater than b
-
-( defun gt (a b)
-    ( not (le a b))
+( defun greater-than (a b)
+    ( not (less-or-equal a b))
 ) 
 
 
-;; (lt a b) is true if a is less than b
+;; (less-than a b) is true if a is less than b
 
-( defun lt (a b) 
-    ( not (le b a))
+( defun less-than (a b) 
+    ( not (less-or-equal b a))
 )
 
 
-;; (ge a b) is true is a is greater than or equal to b
+;; (greater-or-equal a b) is true is a is greater than or equal to b
 
-( defun ge (a b)
-    ( le b a)
+( defun greater-or-equal (a b)
+    ( less-or-equal b a)
 )
 
 
-;; (eqp a b) is true is a is equal to b
+;; (equivelent a b) is true is a is equal to b
 
-( defun eqp (a b)
-    ( and (le a b) (le b a))
+( defun equivelent (a b)
+    ( and (less-or-equal a b) (less-or-equal b a))
 )
 
 
-;; (ne a b) is true is a is not equal to b
+;; (not-equal a b) is true is a is not equal to b
 
-( defun ne (a b)
-    ( not (and (le a b) (le b a)))
+( defun not-equal (a b)
+    ( not (and (less-or-equal a b) (less-or-equal b a)))
 )
 
 
@@ -106,30 +99,30 @@
 ;;   large negative numbers are the lowest
 
 ( defun least (a b)
-    ( if (le a b) a b)
+    ( if (less-or-equal a b) a b)
 )
 
 
 ;; (greatest a b) returns the curset with the greaters numeric value
 
 ( defun greatest (a b)
-    ( if (le a b) b a)
+    ( if (less-or-equal a b) b a)
 )
 
 
-;; (equiv a) returns the reduced surreal form of the given curset
+;; (reduced-form a) returns the reduced surreal form of the given curset
 ;;
 ;;   this is useful for reducing the size of cursets after mathematical operations
 ;;   which can create tree structures which are much longer than their equivelant
 ;;   reduced form
 
-( defun equiv (a &optional (b +zer+))
-  ( if (le a b)
-    ( if (le b a)
-      b
-      ( equiv a (cons (car b) b))
+( defun reduced-form (left &optional (right +zer+))
+  ( if (less-or-equal left right)
+    ( if (less-or-equal right left)
+      right
+      ( reduced-form left (cons (car right) right))
     )
-    ( equiv a (cons b (cdr b)))
+    ( reduced-form left (cons right (cdr right)))
   )
 )
 
@@ -138,115 +131,139 @@
 ;;;   representations: Order, Curset, Value
 ;;;
 
-
-;; (oc a) given natural a, return the curset with this order
-
-( defun oc (a)
-  ( let
-    ( ( bits (floor (log (+ a 1/2) 2)))
-      ( c +zer+)
-    )
-    ( if (< bits 0)
-      ( setf c nil )
-      ( loop for bit downfrom (- bits 1) to 0 do
-        ( if (/= 0 (logand a (expt 2 bit)))
-          ( setf c (cons c (cdr c)))
-          ( setf c (cons (car c) c))
-        )
-      )
-    )
-    c
+;; (bitsize n) - a simple function which return the size of a bit register needed to store n
+;;   it returns -1 when the input is 0
+ 
+( defun bitsize (p)
+  ( do ((size -1 (incf size)))
+    ((zerop p) size)
+    ( setq p (ash p -1))
   )
 )
 
 
-;; (co a) given curset a, return its order number
+;; (order-to-curset a) return the curset of the given order a
 
-( defun co (a)
-  ( let
-    ( (o 0) (p 0) )
-    ( if a
-      ( progn
-        ( loop while (and a (or (car a) (cdr a))) do 
-          ( if (and (cdr a) (eqp (car a) (car (cdr a))))
-            ( setf a (cdr a))
-            ( progn
-              ( setf o (+ o (expt 2 p)))
-              ( setf a (car a))
+( defun order-to-curset (order)
+  ( if (zerop order)
+    nil
+    ( let
+        ( ( bits (1- (bitsize order)))
+          ( curset +zer+)
+        )
+        ( loop for bit downfrom bits to 0 do
+          ( if (zerop (logand order (ash 1 bit)))
+            ( setf curset (cons (car curset) curset))
+            ( setf curset (cons curset (cdr curset)))
+          )
+        )
+        curset
+    )
+  )
+)
+
+
+;; (curset-to-order curset) given curset, return its order number
+
+( defun curset-to-order (curset)
+  ( let ( (order 0) )
+    ( if curset
+      ( let ( 
+          (left (car curset))
+          (right (cdr curset))
+          (power -1)
+        )
+        ( if (not (or left right))
+          ( setf order 1)
+          ( progn
+            ( loop while (and curset (or left right)) do 
+              ( setq left (car curset))
+              ( setq right (cdr curset))
+              ( incf power)
+              ( if (and left (eq right (cdr left)))
+                ( progn
+                  ( setf order (+ order (ash 1 power)))
+                  ( setf curset left)
+                )
+                ( setf curset right)
+              )
+            )
+            ( if order
+              ( setf order (+ order (ash 1 power)))
+              ( setf order 1)
             )
           )
-          ( incf p )
         )
-        ( setf o (+ o (expt 2 p)))
       )
     )
-    o
+    order
   )
 )
 
 
-;; (vo a) the order of the surreal number having the given value
+;; (value-to-order a) the order of the surreal number having the given value
 ;;
 ;;  expects a signed dyadic input
 ;;  output is a non negative integer
 
-( defun vo (a)
-  ( if a
-    ( let 
-      ( u s w f r n b o)
-      ( setq s (if (< a 0) -1 1))
-      ( setq u (* s a))
-      ( setq w (floor u))
-      ( setq f (- u w))
-      ( setq r (rational (+ (* (+ (/ (- (/ f 2) 1) (expt 2 w)) 1) s) 1)))
-      ( setq n (numerator r))
-      ( setq b (denominator r))
-      ( setq o (truncate (+ (/ (- n 1) 2) b)))
-      o
+( defun value-to-order (value)
+  ( if (eq (type-of value) 'single-float)
+    (setq value (rational value))
+  )
+  ( if value
+    ( let (
+        sign absolute whole fraction rotation
+      )
+      ( setq sign (if (< value 0) -1 1))
+      ( setq absolute (* sign value))
+      ( setq whole (floor absolute))
+      ( setq fraction (- absolute whole))
+      ( setq rotation (rational (1+ (* (1+ (/ (1- (/ fraction 2)) (ash 1 whole))) sign))))
+      (truncate (+ (/ (1- (numerator rotation)) 2) (denominator rotation)))
     )
     0
   )
 )
 
-;; (ov a) the value of the surreal number of the given order
+
+;; (order-to-value order) the value of the surreal number of the given order
 ;;
 ;;   expects a non negative integer input
 ;;   output is a signed dyadic
 
-( defun ov (a)
-  ( if (zerop a)
+( defun order-to-value (order)
+  ( if (zerop order)
     nil
-    ( let
-      ( l r s g w f )
-      ( setq l (floor(log (+ a 1/2) 2)))
-      ( setq r (- (/ (+ (* 2 a) 1) (expt 2 l)) 2))
-      ( setq s (signum (- r 1)))
-      ( setq g (* (- r 1) s))
-      ; this fails: 
-      ( setq w (floor (* -1 (log (- 1 g) 2))))
-      ( setq f (+ (* (- g 1) (expt 2 (+ w 1))) 2))
-      ( * (+ w f) s)
+    ( let* (
+        ( bits (bitsize order))
+        ( rotation (- (/ (1+ (* 2 order)) (ash 1 bits)) 2))
+        ( sign (signum (- rotation 1)))
+        ( arch (* (- rotation 1) sign))
+        ( whole (floor (- (log (- 1 arch) 2))))
+        ( fraction (+ (* (1- arch) (ash 1 (1+ whole))) 2))
+      )
+      ( * (+ whole fraction) sign)
     )
   )
 )
 
 
-;; (vc a) the curset representation of the surreal number having the given value
+;; (value-to-order a) the curset representation of the surreal number having the given value
 ;;
 ;;  expects a signed dyadic input
 ;;  output is a curset 
 
-( defun vc (a)
-  ( oc (vo a))
+( defun value-to-curset (value)
+  ( order-to-curset (value-to-order value))
 )
 
 
-;; (ov a) the value of the surreal number of the given order
+;; (curset-to-value a) the value of the surreal number of the given order
 ;;   expects a non negative integer input
 ;;   output is a signed dyadic
 
-( defun cv (a)
-  ( ov (co a))
+( defun curset-to-value (curset)
+  ( order-to-value (curset-to-order curset))
 )
 
 
@@ -255,103 +272,104 @@
 ;;;
 
 
-;; (negate a) returns the negation of the given curset
-
-( defun negate (a)
-  ( if a
-    ( cons (negate (cdr a)) (negate (car a)))
-    a
-  )
-)
-
-
 ;; (add a b) returns the addition of curset a and b
 
 ( defun add (a b)
-  ( if (not a)
-    b
-    ( if (not b)
-      a
+  ( if a
+    ( if b
       ( let 
         ( ( al (car a))
           ( ar (cdr a))
           ( bl (car b))
           ( br (cdr b))
-          l r
+          left right
         )
-        ( setf l (if al (add al b) al))
-        ( setf r (if ar (add ar b) ar))
+        ( setf left (if al (add al b) al))
+        ( setf right (if ar (add ar b) ar))
         ( when bl
           ( let
             ( (less (add a bl)) )
-            ( when (or (not l) (le l less))
-              ( setf l less)
+            ( when (or (not left) (less-or-equal left less))
+              ( setf left less)
             )
           )
         )
         ( when br
           ( let 
             ( (more (add a br)) )
-            ( when (or (not r) (le more r))
-              ( setf r more)
+            ( when (or (not right) (less-than more right))
+              ( setf right more)
             )
           )
         )
-        ( equiv (cons l r))
+        ( reduced-form (cons left right))
       )
+      a
     )
+    b
   )
 )
 
-;; (sub a b) subtract the second curset from the first
 
-( defun sub (a b)
+;; (negate curset) returns the negation of the given curset
+
+( defun negate (curset)
+  ( if curset
+    ( cons (negate (cdr curset)) (negate (car curset)))
+    curset
+  )
+)
+
+
+;; (subtract a b) subtract the second curset from the first
+
+( defun subtract (a b)
   ( add a (negate b))
 )
 
-;; (mul a b) multiply two cursets
+;; (multiply a b) multiply two cursets
 
-( defun mul (a b)
-  ( if (or (not a) (eqp b +pos+))
+( defun multiply (a b)
+  ( if (or (not a) (equivelent b +pos+))
     a
-    ( if (or (not b) (eqp a +pos+))
+    ( if (or (not b) (equivelent a +pos+))
       b
-      ( if (eqp a +neg+)
+      ( if (equivelent a +neg+)
         ( negate b)
-        ( if (eqp b +neg+)
+        ( if (equivelent b +neg+)
           ( negate a)
           ( let (
-              ( al (car a))
+              ( al (car  a))
               ( ar (cdr a))
-              ( bl (car b))
+              ( bl (car  b))
               ( br (cdr b))
               l r
             )
             ( if (and al bl)
-              ( setq l (sub (add (mul al b) (mul a bl)) (mul al bl)))
+              ( setq l (subtract (add (multiply al b) (multiply a bl)) (multiply al bl)))
             )
             ( if (and ar br)
               ( let (
-                  ( l2 (sub (add (mul ar b) (mul a br)) (mul ar br)))
+                  ( l2 (subtract (add (multiply ar b) (multiply a br)) (multiply ar br)))
                 )
-                ( if (or (not l) (le l l2))
+                ( if (or (not l) (less-or-equal l l2))
                   ( setq l l2)
                 )
               )
             )
             ( if (and al br)
-              ( setq r (sub (add (mul al b) (mul a br)) (mul al br)))
+              ( setq r (subtract (add (multiply al b) (multiply a br)) (multiply al br)))
             )
             ( if (and ar bl)
               ( let (
-                  ( r2 (sub (add (mul a bl) (mul ar b)) (mul ar bl)))
+                  ( r2 (subtract (add (multiply a bl) (multiply ar b)) (multiply ar bl)))
                 )
-                ( if (or (not r) (le r2 r))
+                ( if (or (not r) (less-or-equal r2 r))
                   ( setq r r2)
                 )
               )
             )
-            (equiv (cons l r))
+            ( reduced-form (cons l r))
           )
         )
       )
@@ -370,129 +388,92 @@
 ;;     as a real number which converts it to a finite and then 
 ;;     converting it back to a curset. This is a rounding cheat to limit inifinities
 
-( defun invert (a)
-  ( vc (float (/ 1 (cv a))))
+( defun invert (curset)
+  ( value-to-order (float (/ 1 (curset-to-value curset))))
 )
 
 
-;; (div a b) returns the division of a by b
+;; (divide a b) returns the division of a by b
 ;;
 ;;   simply the multiplication of the first by the inversion of the second curset
 
-( defun div (a b)
-  ( mul a (invert b))
+( defun divide (a b)
+  ( multiply a (invert b))
 )
 
-( defun invertTRY (a)
-  ( if (eqp a +pos+)
-    a
-    ( if (lt a +zer+)
-      ( negate(invert(negate a)))
-      ( if (eqp a +zer+)
-        ( print "die with error")
-        ( let (
-            ( al (car a))
-            ( ar (cdr a))
-            ( il +zer+)
-            ( c +zer+)
-            ( ial +zer+)
-            ( iar +zer+)
-            ir
-          )
-          ( loop while (or il ir) do
-            ( let (nl nr)
-              ( if il
-                ( let (
-                    (c (cons il (cdr c)))
-                  )
-                  ( if ar
-                    ( let (
-                        ( iar (or iar (invert ar)))
-                        ( l (mul (add +pos+ (mul (sub ar a) il))))
-                      )
-                      ( if (or ((not (car c)) (gt l (car c))))
-                        ( setq nl l)
-                      )
-                    )
-                  )
-                  ( if (and al (not (le al +zer+)))
-                    ( let (
-                        ( ial (or ial (invert al)))
-                        ( r (mul (add +pos+ (mul (sub al a) il)) ial))
-                      )
-                      ( if (or ((not (cdr c)) (lt r (cdr c))))
-                        ( setq nr r)
-                      )
-                    )
-                  )
-                )
-              )
-              ( if ir
-                ( let (
-                    (c (cons (car c) ir))
-                  )
-                  ( if (and al (not (le al +zer+)))
-                    ( let (
-                        ( ial (or ial (invert al)))
-                        ( l (mul (add +pos+ (mul (sub al a) ir))))
-                      )
-                      ( if (not (or (and nl (le l nl) 
-                                    (and (car c) (le l (car c))))))
-                        ( setq nl l)
-                      )
-                    )
-                  )
-                  ( if ar
-                    ( let (
-                        ( iar (or iar (invert ar)))
-                        ( right (mul (add +pos+ (mul (sub al a) ir)) iar))
-                      )
-                      ( if (not (or (and nr (le right nr)) (and (cdr c) (le right (cdr c)))))
-                        ( setq nr right)
-                      )
-                    )
-                  )
-                  ( setf il nl)
-                  ( setf ir nr)
-                )
-              )
-            )
-          )
-          ( equiv c)
-        )
-      )
-    )
-  )
-)
 
 ;;;
 ;;; Tools
 ;;;
 
 
-;; (gen a) produce a list of cursets from 0 to a...
-;;   c = current curset
-;;   r = right curset
-;;   l = left curset
-;;   s = a running stack
-;;   o = the output list
+;; (ordinal-universe day) produce a list of cursets to the given days ordered by their birth (ordinal)...
 
-( defun gen (a)
+( defun ordinal-universe (days)
   ( let
-    ( (s +zer+)
-      (o +zer+)
-      c l r 
+    ( 
+      ( n (1- (ash 1 days)))
+      ( stack (list nil))
+      head tail universe
     )
-    ( loop repeat a do
-      (setf r (car (last s)))
-      (setf c (cons l r))
-      (setf s (append (list r c) (reverse (cdr (reverse s)))))
-      (setf o (append o (list c)))
-      (setf l r)
+    ( loop repeat n do
+      ( setq head (car universe))
+      ( setq tail (car (last universe)))
+      ( setq stack (append stack (list (cons head tail))))
+      ( setq universe (append (list tail (cons head tail)) (butlast universe)))
     )
-    o
+    stack
   )
 )
+
+
+;;; (value-universe a) - creates a list of value order cursets for a given cycle of days
+;;;
+;;; Generates 2 to the power of days of cursets in value order
+;;;   starting from zero and accending to day - 1,
+;;;   then it rolls to negative day - 1
+;;; this generates a list in value order
+;;; although the numbers roll in a circle, so the number at the beginning of the list will vary.
+;;; if a is a power of 2, then the list will always begin with 
+
+;;; cursets are stored in a cyclic list
+;;; a loop puts new cursets on to the list in this process:
+;;;  a new curset is added to the beginning of the stack
+;;;  New cursets are generated by using the head of the stack as its left side
+;;;  and the tail of the stack as its left side
+;;;  the new curset is added to the beginning of the stack
+;;;  the stack is rolled so that the tail element becomes the head
+
+
+( defun value-universe (days)
+  ( let
+    ( 
+      ( n (1- (ash 1 days)))
+      head tail universe
+    )
+    ( loop repeat n do
+      ( setq head (car universe))
+      ( setq tail (car (last universe)))
+      ( setq universe (append (list tail (cons head tail)) (butlast universe)))
+    )
+    universe
+  )
+)
+
+;;;
+;;; Short Forms - for testing convenience...
+;;;
+
+( defun co (c) (curset-to-order c))
+( defun oc (o) (order-to-curset o))
+( defun vo (v) (value-to-order v))
+( defun ov (o) (order-to-value o))
+( defun cv (c) (curset-to-value c))
+( defun vc (v) (value-to-curset v))
+( defun vu (d) (value-universe d))
+( defun ou (d) (ordinal-universe d))
+( defun le (a b) (less-or-equal a b))
+( defun eqp (a b) (equivelent a b))
 
 
 ;;;
@@ -509,71 +490,83 @@
     ( size (expt 2 5))
     ( errors 0)
   )
-  ( format t "Testing ~a×~a×~a = ~a total comparisons" 6 size size (* 6 size size))
+  ( format t "Comparing ~a × ~a × 6 ways = ~a comparisons" size size (* size size 6))
   ( terpri )
   ( loop for a from 1 to size do
     ( loop for b from 1 to size do
       ( let (
-          ( va (ov a)) 
-          ( vb (ov b))
-          ( ca (oc a))
-          ( cb (oc b))
+          ( va (order-to-value a)) 
+          ( vb (order-to-value b))
+          ( ca (order-to-curset a))
+          ( cb (order-to-curset b))
           expect
           result
         )
 
         ; test le
         ( setq expect (<= va vb))
-        ( setq result (le ca cb))
+        ( setq result (less-or-equal ca cb))
+        ( format t "~a <= ~a  expect:~a result:~a" va vb expect result)
+        ( terpri)
         ( if 
           ( not (or (and expect result) (and (not expect) (not result))))
-          ( incf errors)
+          ( progn (incf errors)(print "ERRORS1"))
         )
 
         ; test lt
         ( setq expect (< va vb))
-        ( setq result (lt ca cb))
+        ( setq result (less-than ca cb))
+        ( format t "~a < ~a  expect:~a result:~a" va vb expect result)
+        ( terpri)
         ( if 
           ( not (or (and expect result) (and (not expect) (not result))))
-          ( incf errors)
+          ( progn (incf errors)(print "ERRORS2"))
         )
 
-        ; test gt
+        ; test greater-than
         ( setq expect (> va vb))
-        ( setq result (gt ca cb))
+        ( setq result (greater-than ca cb))
+        ( format t "~a > ~a  expect:~a result:~a" va vb expect result)
+        ( terpri)
         ( if 
           ( not (or (and expect result) (and (not expect) (not result))))
-          ( incf errors)
+          ( progn (incf errors)(print "ERRORS3"))
         )
 
-        ; test ge 
+        ; test greater-or-equal 
         ( setq expect (>= va vb))
-        ( setq result (ge ca cb))
+        ( setq result (greater-or-equal ca cb))
+        ( format t "~a >= ~a  expect:~a result:~a" va vb expect result)
+        ( terpri)
         ( if 
           ( not (or (and expect result) (and (not expect) (not result))))
-          ( incf errors)
+          ( progn (incf errors)(print "ERRORS4"))
         )
 
-        ; test eqp
+        ; test equivelent
         ( setq expect (= va vb))
-        ( setq result (eqp ca cb))
+        ( setq result (equivelent ca cb))
+        ( format t "~a = ~a  expect:~a result:~a" va vb expect result)
+        ( terpri)
         ( if 
           ( not (or (and expect result) (and (not expect) (not result))))
-          ( incf errors)
+          ( progn (incf errors)(print "ERRORS5"))
         )
 
         ; test ne
         ( setq expect (/= va vb))
-        ( setq result (ne ca cb))
+        ( setq result (not-equal ca cb))
+        ( format t "~a != ~a  expect:~a result:~a" va vb expect result)
+        ( terpri)
         ( if 
           ( not (or (and expect result) (and (not expect) (not result))))
-          ( incf errors)
+          ( progn (incf errors)(print "ERRORS6"))
         )
 
       )
     )
   )
-  ( if (= 0 errors)
+  ( if (zerop errors)
     ( print "Success: There were no errors")
     ( format t "Error: There were ~a comparison errors" errors)
   )
@@ -585,29 +578,29 @@
 ;:   tested true negations on the first 2^20-1 = 1048575 curset negations
 
 ( let (
-    ( size (- (expt 2 20) 1))
+    ( size (- (expt 2 10) 1))
     ( errors 0)
   )
   ( format t "Testing ~a negations" size)
   ( terpri)
   ( let (
-      c
+      curset
       result
       expect
       errors
     )
-    ( loop for a from 1048575 to size do
+    ( loop for a from 1 to size do
       ( print a)
-      ( setq c (oc a))
-      ( setq expect (- 0 (cv c)))
-      ( setq result (cv (negate c)))
+      ( setq curset (order-to-curset a))
+      ( setq expect (- 0 (curset-to-value curset)))
+      ( setq result (curset-to-value (negate curset)))
       ( if 
         ( /= expect result)
         ( incf errors)
       )
     )
   )
-  ( if (= 0 errors)
+  ( if (zerop errors)
     ( print "Success: There were no errors")
     ( format t "Error: There were ~a negation errors" errors)
   )
@@ -626,15 +619,15 @@
   ( loop for a from 1 to size do
     ( loop for b from 1 to size do
       ( let (
-          ( va (ov a)) 
-          ( vb (ov b))
-          ( ca (oc a))
-          ( cb (oc b))
+          ( va (order-to-value a)) 
+          ( vb (order-to-value b))
+          ( ca (order-to-curset a))
+          ( cb (order-to-curset b))
           expect
           result
         )
         ( setq expect (+ va vb))
-        ( setq result (cv (add ca cb)))
+        ( setq result (curset-to-value (add ca cb)))
         ( if 
           ( not (or (and expect result) (and (not expect) (not result))))
           ( incf errors)
@@ -642,7 +635,7 @@
       )
     )
   )
-  ( if (= 0 errors)
+  ( if (zerop errors)
     ( print "Success: There were no addition errors")
     ( format t "Error: There were ~a addition errors" errors)
   )
@@ -654,7 +647,7 @@
 ;;  tested true subtraction for the first 256 cursets: 2^8^2 = 65536 subtractions
 
 ( let (
-    ( size (expt 2 6))
+    ( size (expt 2 7))
     ( errors 0)
   )
   ( format t "Testing ~a×~a=~a total subtractions" size size (* size size))
@@ -662,15 +655,15 @@
   ( loop for a from 1 to size do
     ( loop for b from 1 to size do
       ( let (
-          ( va (ov a)) 
-          ( vb (ov b))
-          ( ca (oc a))
-          ( cb (oc b))
+          ( va (order-to-value a)) 
+          ( vb (order-to-value b))
+          ( ca (order-to-curset a))
+          ( cb (order-to-curset b))
           expect
           result
         )
         ( setq expect (- va vb))
-        ( setq result (cv (sub ca cb)))
+        ( setq result (curset-to-value (subtract ca cb)))
         ( if 
           ( not (or (and expect result) (and (not expect) (not result))))
           ( incf errors)
@@ -678,7 +671,7 @@
       )
     )
   )
-  ( if (= 0 errors)
+  ( if (zerop errors)
     ( print "Success: There were no subtraction errors")
     ( format t "Error: There were ~a subtraction errors" errors)
   )
@@ -690,7 +683,7 @@
 ;;  tested true for the first 15 cursets
 ;;
 ;; Fails for 16th × 16th curset which is -4 × -4 = 16 for unknown reasons at this time
-;;  ex failure: "(mul (oc 16) (oc 16))"
+;;  ex failure: "(multiply (order-to-curset 16) (order-to-curset 16))"
 
 ( let (
     ( size 15)
@@ -701,15 +694,15 @@
   ( loop for a from 1 to size do
     ( loop for b from 1 to size do
       ( let (
-          ( va (ov a))
-          ( vb (ov b))
-          ( ca (oc a))
-          ( cb (oc b))
+          ( va (order-to-value a))
+          ( vb (order-to-value b))
+          ( ca (order-to-curset a))
+          ( cb (order-to-curset b))
           expect
           result
         )
         ( setq expect (* va vb))
-        ( setq result (cv (mul ca cb)))
+        ( setq result (curset-to-value (multiply ca cb)))
         ( if
           ( not (or (and expect result) (and (not expect) (not result))))
           ( incf errors)
@@ -717,7 +710,7 @@
       )
     )
   )
-  ( if (= 0 errors)
+  ( if (zerop errors)
     ( print "Success: There were no multiplication errors")
     ( format t "Error: There were ~a multiplication errors" errors)
   )
@@ -730,7 +723,7 @@
 ;;
 ;; Fails for 4th/8th curset which is -2/-3 = 2/3 = 0.6666667 for unknown reasons
 ;;  or perhaps I did not wait long enough?
-;;  ex failure: "(mul (oc 16) (oc 16))"
+;;  ex failure: "(multiply (order-to-curset 16) (order-to-curset 16))"
 
 ( let (
     ( size 7)
@@ -741,10 +734,10 @@
   ( loop for a from 1 to size do
     ( loop for b from 1 to size do
       ( let (
-          ( va (ov a))
-          ( vb (ov b))
-          ( ca (oc a))
-          ( cb (oc b))
+          ( va (order-to-value a))
+          ( vb (order-to-value b))
+          ( ca (order-to-curset a))
+          ( cb (order-to-curset b))
           expect
           result
         )
@@ -752,7 +745,7 @@
           ( progn
             ; test division
             ( setq expect (/ va vb))
-            ( setq result (float (cv (div ca cb))))
+            ( setq result (float (curset-to-value (divide ca cb))))
             ( if
               ( not (or (and expect result) (and (not expect) (not result))))
               ( incf errors)
@@ -762,7 +755,7 @@
       )
     )
   )
-  ( if (= 0 errors)
+  ( if (zerop errors)
     ( print "Success: There were no division errors")
     ( format t "Error: There were ~a division errors" errors)
   )
